@@ -1,48 +1,110 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import './Auth.css';
 
-function Register() { 
-  const [form, setForm] = useState({ name: '',
-     email: '', password: '' });//useState crea un estado local llamado form.
-                                //Inicialmente, los campos name, email y password están vacíos.
-                                //setForm se usa para actualizar los valores del formulario cuando el usuario escribe
-  const navigate = useNavigate();//Permite redirigir a otra página después de un evento, por ejemplo al login tras registrarse
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
-  const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value }); //e.target.name el nombre del input (name, email o password).
+function Register() {
+  const [form, setForm] = useState({
+    name: '',
+    email: '',
+    password: '',
+    role: 'user',
+    adminCode: ''
+  });
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const navigate = useNavigate();
 
-                                                           //e.target.value el valor que el usuario escribió.
-    
-                                                           // actualiza solo el campo que cambió, manteniendo los demás iguales.
-  };       
+  const handleChange = (event) => {
+    const { name, value } = event.target;
+    setForm(prev => ({ ...prev, [name]: value }));
+  };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault(); //e.preventDefault() Evita que el formulario haga un refresh de la página al enviar
-                      
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    setError('');
+    setSuccess('');
     try {
-      const res = await axios.post('http://localhost:5000/api/users/register', form); //Envía los datos del formulario (name, email, password) al backend.
-                                                                                      //Es una petición POST a la ruta /api/users/register
-      alert(res.data.message); //Muestra un mensaje que viene del backend, por ejemplo: "Usuario registrado".
-      navigate('/'); // redirige al login
-    } catch (error) {
-      if (error.response) {
-        alert(error.response.data.message);
+      await axios.post(`${API_URL}/api/users/register`, form);
+      setSuccess('Usuario creado con éxito. Puedes iniciar sesión.');
+      setTimeout(() => navigate('/'), 1200);
+    } catch (err) {
+      if (err.response) {
+        setError(err.response.data.message || 'No se pudo registrar el usuario');
       } else {
-        alert('Error de conexión con el servidor');
+        setError('No se pudo conectar con el servidor');
       }
     }
   };
 
   return (
-    <div>
-      <h2>Registro</h2>
-      <form onSubmit={handleSubmit}>
-        <input name="name" placeholder="Nombre" value={form.name} onChange={handleChange} required />
-        <input name="email" type="email" placeholder="Email" value={form.email} onChange={handleChange} required />
-        <input name="password" type="password" placeholder="Contraseña" value={form.password} onChange={handleChange} required />
-        <button type="submit">Registrarse</button>
-      </form>
+    <div className="auth">
+      <div className="auth__card">
+        <h2>Crear cuenta</h2>
+        {error && <p className="auth__alert">{error}</p>}
+        {success && <p className="auth__alert" style={{ background: 'rgba(34,197,94,0.15)', color: '#15803d' }}>{success}</p>}
+        <form className="auth__form" onSubmit={handleSubmit}>
+          <label>
+            Nombre completo
+            <input
+              name="name"
+              placeholder="Ana Pérez"
+              value={form.name}
+              onChange={handleChange}
+              required
+            />
+          </label>
+          <label>
+            Correo electrónico
+            <input
+              name="email"
+              type="email"
+              placeholder="ana@tienda.com"
+              value={form.email}
+              onChange={handleChange}
+              required
+            />
+          </label>
+          <label>
+            Contraseña
+            <input
+              name="password"
+              type="password"
+              placeholder="********"
+              value={form.password}
+              onChange={handleChange}
+              required
+            />
+          </label>
+          <label>
+            Tipo de cuenta
+            <select name="role" value={form.role} onChange={handleChange}>
+              <option value="user">Empleado</option>
+              <option value="admin">Administrador</option>
+            </select>
+          </label>
+          {form.role === 'admin' && (
+            <label>
+              Código de administrador
+              <input
+                name="adminCode"
+                placeholder="Código proporcionado"
+                value={form.adminCode}
+                onChange={handleChange}
+                required
+              />
+            </label>
+          )}
+          <button type="submit" className="auth__submit">
+            Registrarme
+          </button>
+        </form>
+        <p className="auth__footer">
+          ¿Ya tienes una cuenta? <Link to="/">Inicia sesión</Link>
+        </p>
+      </div>
     </div>
   );
 }
