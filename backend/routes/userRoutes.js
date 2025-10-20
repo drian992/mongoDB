@@ -1,29 +1,31 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const User = require('../models/User'); 
+const User = require('../models/User');
 
 const router = express.Router();
 
 // Registro de usuario
 router.post('/register', async (req, res) => {
-  const { name, email, password } = req.body;
+  const { name, email, password, role = 'user', adminCode } = req.body;
   try {
-    // Verificar si el usuario ya existe
     const userExists = await User.findOne({ email });
     if (userExists) return res.status(400).json({ message: 'Usuario ya registrado' });
 
-    // Encriptar contraseña
+    if (role === 'admin' && adminCode !== process.env.ADMIN_CODE) {
+      return res.status(403).json({ message: 'Código de administrador inválido' });
+    }
+
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Crear usuario
     const newUser = await User.create({
       name,
       email,
-      password: hashedPassword
+      password: hashedPassword,
+      role: role === 'admin' ? 'admin' : 'user'
     });
 
-    res.json({ message: 'Usuario registrado', user: newUser });
+    res.json({ message: 'Usuario registrado', user: { id: newUser._id, name: newUser.name, role: newUser.role } });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Error en el servidor' });
@@ -40,10 +42,12 @@ router.post('/login', async (req, res) => {
     const validPassword = await bcrypt.compare(password, user.password);
     if (!validPassword) return res.status(400).json({ message: 'Contraseña incorrecta' });
 
-    // Generar token JWT
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '1d' });
+    const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '1d' });
 
-    res.json({ token, user: { id: user._id, name: user.name, email: user.email } });
+    res.json({
+      token,
+      user: { id: user._id, name: user.name, email: user.email, role: user.role }
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Error en el servidor' });
@@ -53,7 +57,7 @@ router.post('/login', async (req, res) => {
 // Obtener todos los usuarios
 router.get('/', async (req, res) => {
   try {
-    const users = await User.find();
+    const users = await User.find().select('-password');
     res.json(users);
   } catch (error) {
     res.status(500).json({ message: 'Error al obtener usuarios' });
@@ -62,13 +66,13 @@ router.get('/', async (req, res) => {
 
 // Actualizar usuario
 router.put('/:id', async (req, res) => {
-  const { name, email } = req.body;
+  const { name, email, role } = req.body;
   try {
     const updatedUser = await User.findByIdAndUpdate(
       req.params.id,
-      { name, email },
-      { new: true }
-    );
+      { name, email, role },
+      { new: true, runValidators: true }
+    ).select('-password');
     res.json(updatedUser);
   } catch (error) {
     res.status(500).json({ message: 'Error al actualizar usuario' });

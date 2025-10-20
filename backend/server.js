@@ -3,6 +3,8 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const userRoutes = require('./routes/userRoutes');
+const clothingRoutes = require('./routes/clothingRoutes');
+const foodRoutes = require('./routes/foodRoutes');
 
 dotenv.config();
 const app = express();
@@ -13,9 +15,12 @@ app.use(express.json());
 
 // Rutas
 app.use('/api/users', userRoutes);
+app.use('/api/clothing', clothingRoutes);
+app.use('/api/foods', foodRoutes);
 
 // Conexión a MongoDB
-mongoose.connect(process.env.MONGO_URI)
+mongoose
+  .connect(process.env.MONGO_URI)
   .then(() => console.log('MongoDB conectado'))
   .catch(err => console.error(err));
 

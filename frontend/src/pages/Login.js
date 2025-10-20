@@ -1,45 +1,78 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import './Auth.css';
+
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 function Login() {
-  const [form, setForm] = useState({ email: '', password: '' });//useState crea un estado local llamado form, Inicialmente, los campos email y password están vacíos (''), setForm se usa para actualizar los valores del formulario cuando el usuario escribe en los inputs
-  const navigate = useNavigate(); //Permite redirigir a otra página después de un evento exitoso, por ejemplo al dashboard tras iniciar sesión.
+  const [form, setForm] = useState({ email: '', password: '' });
+  const [error, setError] = useState('');
+  const navigate = useNavigate();
 
   const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value }); //e es el evento que ocurre cuando el usuario escribe en un input.
-
-                                                           //e.target.name → el nombre del input (email o password).
-    
-                                                          //e.target.value → el valor que el usuario escribió.
-    
-                                                              // actualiza solo el campo que cambió, dejando los demás intactos.
+    setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = async (e) => { //Se ejecuta cuando el usuario hace clic en el botón de "Login" dentro de un formulario
-    e.preventDefault(); //es el evento que se dispara al enviar el formulario, evita que la página se recargue, que es el comportamiento normal de un formulario HTML, Esto permite manejar el envío con JavaScript sin recargar la página
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
     try {
-      const res = await axios.post('http://localhost:5000/api/users/login', form);
+      const res = await axios.post(`${API_URL}/api/users/login`, form);
+      if (res.data.user.role !== 'admin') {
+        setError('Solo los administradores pueden acceder al panel.');
+        return;
+      }
       localStorage.setItem('token', res.data.token);
-      alert('Login exitoso');
-      navigate('/dashboard'); // redirige al Dashboard
-    } catch (error) {
-      if (error.response) {
-        alert(error.response.data.message);
+      localStorage.setItem('userRole', res.data.user.role);
+      localStorage.setItem('userName', res.data.user.name);
+      localStorage.setItem('userEmail', res.data.user.email);
+      navigate('/dashboard');
+    } catch (err) {
+      if (err.response) {
+        setError(err.response.data.message || 'Credenciales incorrectas');
       } else {
-        alert('Error de conexión con el servidor');
+        setError('No se pudo conectar con el servidor');
       }
     }
   };
 
   return (
-    <div>
-      <h2>Login</h2>
-      <form onSubmit={handleSubmit}>
-        <input name="email" type="email" placeholder="Email" value={form.email} onChange={handleChange} required />
-        <input name="password" type="password" placeholder="Contraseña" value={form.password} onChange={handleChange} required />
-        <button type="submit">Ingresar</button>
-      </form>
+    <div className="auth">
+      <div className="auth__card">
+        <h2>Acceso de administrador</h2>
+        {error && <p className="auth__alert">{error}</p>}
+        <form className="auth__form" onSubmit={handleSubmit}>
+          <label>
+            Correo electrónico
+            <input
+              name="email"
+              type="email"
+              placeholder="ejemplo@tienda.com"
+              value={form.email}
+              onChange={handleChange}
+              required
+            />
+          </label>
+          <label>
+            Contraseña
+            <input
+              name="password"
+              type="password"
+              placeholder="********"
+              value={form.password}
+              onChange={handleChange}
+              required
+            />
+          </label>
+          <button type="submit" className="auth__submit">
+            Ingresar
+          </button>
+        </form>
+        <p className="auth__footer">
+          ¿Aún no tienes una cuenta? <Link to="/register">Crea una aquí</Link>
+        </p>
+      </div>
     </div>
   );
 }
